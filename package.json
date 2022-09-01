@@ -1,0 +1,15 @@
+{
+  "name": "rlp.mo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "kusanagi": " watch 'bash kusanagi.sh' ./srcku"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "watch": "^1.0.2"
+  }
+}
