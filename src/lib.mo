@@ -178,9 +178,9 @@ module {
   let threshold2 : Nat8 = 183; //b7 matchr Hex.decode("b7"), val[0], D.trap("unreachable")
   let threshold3 : Nat8 = 247;//f7 switch(Hex.decode("f7")){case(#ok(val)){val[0]};case(#err(err)){D.trap("unreachable")}};
  
-  let threshold4 : Nat8 = 182; //b6  matchr Hex.decode("b6"), val[0], D.trap("unreachable")
-  let threshold5 : Nat8 = 191; //bf matchr Hex.decode("bf"), val[0], D.trap("unreachable")
-  let nullbyte : Nat8 = 128; //80 matchr Hex.decode("80"), val[0], D.trap("unreachable")
+  let threshold4 = 182; //b6  matchr Hex.decode("b6"), val[0], D.trap("unreachable")
+  let threshold5 = 191; //bf matchr Hex.decode("bf"), val[0], D.trap("unreachable")
+  let nullbyte = 128; //80 matchr Hex.decode("80"), val[0], D.trap("unreachable")
 
 
   /** Decode an input with RLP */
