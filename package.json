@@ -1,16 +1,11 @@
 {
   "name": "rlp.mo",
   "version": "1.0.0",
-  "description": "",
+  "description": "Motoko RLP Encoding and Decoding",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "kusanagi": " watch 'bash kusanagi.sh' ./srcku",
-    "kusanagitest": " watch 'bash kusanagitest.sh' ./testku"
+    "test": "for i in test/*.spec.mo ; do $(vessel bin)/moc $(vessel sources) -r $i ; done"
   },
   "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "watch": "^1.0.2"
-  }
+  "license": "ISC"
 }
