@@ -15,7 +15,6 @@ module {
   public type Input = {
     #string : Text;
     #number: Nat;
-    #bigint: Nat;
     #Uint8Array : Uint8Array;
     #List: InputList;
     #Null;
@@ -366,10 +365,12 @@ module {
         return toBuffer<Nat8>(Blob.toArray(Text.encodeUtf8(item)));
       };
       case(#number(v)) {
-        return switch(Hex.decode(Hex.encodeByte(Nat8.fromNat(v)))){case(#ok(val)){toBuffer<Nat8>(val)};case(#err(err)){D.trap("not a valid hex")}};
-      };
-      case(#bigint(v)) {
-        return switch(Hex.decode(Hex.encodeByte(Nat8.fromNat(v)))){case(#ok(val)){toBuffer<Nat8>(val)};case(#err(err)){D.trap("not a valid hex")}};
+        if(v == 0) {
+          return Buffer.Buffer<Nat8>(0);
+        } else {
+          let byteArray = natToBytes(v);
+          return Buffer.fromArray(byteArray);
+        }
       };
       case(#Null) {
         return Buffer.Buffer<Nat8>(1);

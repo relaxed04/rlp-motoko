@@ -15,8 +15,17 @@ let suite = Suite();
 
 let testCases: [(Text, RLP.Input, Text)] = [
   ("integer0", #number(0), "80"),
+  ("integer1", #number(1), "01"),
   ("integer127", #number(127), "7f"),
   ("integer128", #number(128), "8180"),
+  ("integer256", #number(256), "820100"),
+  ("integer1024", #number(1024), "820400"),
+  ("integerLargeHex1", #number(0xFFFFFF), "83ffffff"),
+  ("integerLargeHex2", #number(0xFFFFFFFF), "84ffffffff"),
+  ("integerLargeHex3", #number(0xFFFFFFFFFF), "85ffffffffff"),
+  ("integerLargeHex4", #number(0xFFFFFFFFFFFF), "86ffffffffffff"),
+  ("integerLargeHex5", #number(0xFFFFFFFFFFFFFF), "87ffffffffffffff"),
+  ("integerLargeHex6", #number(0xFFFFFFFFFFFFFFFF), "88ffffffffffffffff"),
 
   ("byteArrayEmpty", #Uint8Array(Buffer.fromArray<Nat8>([])), "80"),
   ("byteArray0", #Uint8Array(Buffer.fromArray<Nat8>([0])), "00"),
@@ -86,17 +95,6 @@ let testCases: [(Text, RLP.Input, Text)] = [
   ])), "f90200cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376cf84617364668471776572847a786376"),
 ];
 
-let testCasesCausingTraps = [
-  ("integer256", #number(256), "820100"),
-  ("integer1024", #number(1024), "820400"),
-  ("integerLargeHex1", #number(0xFFFFFF), "83ffffff"),
-  ("integerLargeHex2", #number(0xFFFFFFFF), "84ffffffff"),
-  ("integerLargeHex3", #number(0xFFFFFFFFFF), "85ffffffffff"),
-  ("integerLargeHex4", #number(0xFFFFFFFFFFFF), "86ffffffffffff"),
-  ("integerLargeHex5", #number(0xFFFFFFFFFFFFFF), "87ffffffffffffff"),
-  ("integerLargeHex6", #number(0xFFFFFFFFFFFFFFFF), "88ffffffffffffffff"),
-];
-
 func convertNat8BufferToHexText(buffer : Buffer.Buffer<Nat8>): Text {
   var result = "";
   for(byte in buffer.vals()) {
@@ -123,7 +121,6 @@ let tests = Iter.map(testCasesIterable, func ((name: Text, input: RLP.Input, exp
   switch(input) {
     case(#string(val)) { testInputVal(name, #string(val), expected) };
     case(#number(val)) { testInputVal(name, #number(val), expected) };
-    case(#bigint(val)) { testInputVal(name, #bigint(val), expected) };
     case(#Uint8Array(val)) { testInputVal(name, #Uint8Array(val), expected) };
     case(#List(val)) { testInputVal(name, #List(val), expected) };
     case(#Null(val)) { testInputVal(name, #Null(val), expected) };
