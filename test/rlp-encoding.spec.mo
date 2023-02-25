@@ -43,6 +43,13 @@ let testCases: [(Text, RLP.Input, Text)] = [
   ("listIntegerSize3", #List(Buffer.fromArray<RLP.Input>([#number(1), #number(2), #number(3)])), "c3010203"),
 
   ("listString", #List(Buffer.fromArray<RLP.Input>([#string("aaa"), #string("bbb"), #string("ccc"), #string("ddd"), #string("eee"), #string("fff"), #string("ggg"), #string("hhh"), #string("iii"), #string("jjj"), #string("kkk"), #string("lll"), #string("mmm"), #string("nnn"), #string("ooo")])), "f83c836161618362626283636363836464648365656583666666836767678368686883696969836a6a6a836b6b6b836c6c6c836d6d6d836e6e6e836f6f6f"),
+  ("listListListEmpty", #List(Buffer.fromArray<RLP.Input>([
+    #List(Buffer.fromArray<RLP.Input>([
+      #List(Buffer.fromArray<RLP.Input>([])),
+      #List(Buffer.fromArray<RLP.Input>([]))
+    ])),
+    #List(Buffer.fromArray<RLP.Input>([]))
+  ])) , "c4c2c0c0c0"),
   ("listListString", #List(Buffer.fromArray<RLP.Input>([
     #List(Buffer.fromArray<RLP.Input>([#string("asdf"), #string("qwer"), #string("zxcv")])),
     #List(Buffer.fromArray<RLP.Input>([#string("asdf"), #string("qwer"), #string("zxcv")])),
