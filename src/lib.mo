@@ -49,11 +49,6 @@ module {
  **/
   public func encode(input: Input) : Uint8Array {
     switch(input) {
-      case(#Uint8Array(item)) {
-        let result = encodeLength(item.size(), 192);
-        result.append(item);
-        return result;
-      };
       case(#List(item)) {
         let output = Buffer.Buffer<Nat8>(1);
         for(thisItem in item.vals()) {
@@ -112,7 +107,7 @@ module {
 
   public func encodeLength(len: Nat, offset: Nat): Uint8Array {
     if (len < 56) {
-      return toBuffer<Nat8>([Nat8.fromNat(len) + Nat8.fromNat(offset)]);
+      return Buffer.fromArray([Nat8.fromNat(len) + Nat8.fromNat(offset)]);
     };
     let hexLength = numberToHex(len);
     let lLength = hexLength.size() / 2;
@@ -345,8 +340,9 @@ module {
   /** Removes 0x from a given String */
   public func stripHexPrefix(str: Text): Text { 
     return if (isHexPrefixed(str))
-        switch(Text.stripStart(str, #text("0x"))){case(null){str};case(?val){val}}
-
+        switch(Text.stripStart(str, #text("0x"))){
+          case(null){ str };
+          case(?val){ val }}
       else 
         str;
   };
@@ -360,9 +356,13 @@ module {
       };
       case(#string(item)) {
         if (isHexPrefixed(item)) {
-          return toBuffer<Nat8>(switch(Hex.decode(padToEven(stripHexPrefix(item)))){case(#ok(val)){val};case(#err(err)){D.trap("nat a valid hex")}});
+          let result = switch(Hex.decode(padToEven(stripHexPrefix(item)))){
+            case(#ok(val)){ val };
+            case(#err(err)){ D.trap("nat a valid hex") }};
+          return toBuffer<Nat8>(result);
         };
-        return toBuffer<Nat8>(Blob.toArray(Text.encodeUtf8(item)));
+        let str = Text.encodeUtf8(item);
+        return Buffer.fromArray(Blob.toArray(str));
       };
       case(#number(v)) {
         if(v == 0) {
