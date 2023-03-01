@@ -35,11 +35,17 @@ let testCases: [(Text, RLP.Input, Text)] = [
   ("byteArrayFF", #Uint8Array(Buffer.fromArray<Nat8>([0xFF])), "81ff"),
   ("byteArraySize3", #Uint8Array(Buffer.fromArray<Nat8>([1, 2, 3])), "83010203"),
 
+  ("hexString00", #string("0x00"), "00"),
+  ("hexString7F", #string("0x7F"), "7f"),
+  ("hexString80", #string("0x80"), "8180"),
+  ("hexStringFF", #string("0xFF"), "81ff"),
+
   ("emptyString", #string(""), "80"),
   ("byteString00", #string("\u{0000}"), "00"),
   ("byteString01", #string("\u{0001}"), "01"),
   ("byteString7F", #string("\u{007F}"), "7f"),
-  ("byteString80", #string("\u{0080}"), "8180"),
+  ("byteString80", #string("\u{0080}"), "82c280"), // go-ethereum RLP encodes this as 8180, ethereumjs encodes as 82c280.
+  ("byteStringFF", #string("\u{00FF}"), "82c3bf"), // go-ethereum RLP encodes this as 81ff, ethereumjs encodes as 82c3bf.
   ("shortString", #string("dog"), "83646f67"),
   ("shortString2", #string("Lorem ipsum dolor sit amet, consectetur adipisicing eli"), "b74c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c69"),
   ("shortString3", #string("Lorem ipsum dolor sit amet, consectetur adipisicing elit"), "b8384c6f72656d20697073756d20646f6c6f722073697420616d65742c20636f6e7365637465747572206164697069736963696e6720656c6974"),
@@ -48,7 +54,7 @@ let testCases: [(Text, RLP.Input, Text)] = [
   ("null", #Null, "80"),
   ("undefined", #Undefined, "80"),
 
-  ("listIntegerEmpty", #List(Buffer.fromArray<RLP.Input>([])), "c0"),
+  ("listEmpty", #List(Buffer.fromArray<RLP.Input>([])), "c0"),
   ("listIntegerSize3", #List(Buffer.fromArray<RLP.Input>([#number(1), #number(2), #number(3)])), "c3010203"),
 
   ("listString", #List(Buffer.fromArray<RLP.Input>([#string("aaa"), #string("bbb"), #string("ccc"), #string("ddd"), #string("eee"), #string("fff"), #string("ggg"), #string("hhh"), #string("iii"), #string("jjj"), #string("kkk"), #string("lll"), #string("mmm"), #string("nnn"), #string("ooo")])), "f83c836161618362626283636363836464648365656583666666836767678368686883696969836a6a6a836b6b6b836c6c6c836d6d6d836e6e6e836f6f6f"),
@@ -103,7 +109,7 @@ func convertNat8BufferToHexText(buffer : Buffer.Buffer<Nat8>): Text {
   return result;
 };
 
-func testInputVal(name: Text, input : RLP.Input, expected: Text) : TestLib.NamedTest {
+func testEncodingVal(name: Text, input : RLP.Input, expected: Text) : TestLib.NamedTest {
   return it(name, func () : Bool {
     let encoded = RLP.encode(input);
     let encodedHexText = convertNat8BufferToHexText(encoded);
@@ -117,17 +123,17 @@ func testInputVal(name: Text, input : RLP.Input, expected: Text) : TestLib.Named
 
 let testCasesIterable = Iter.fromArray(testCases);
 
-let tests = Iter.map(testCasesIterable, func ((name: Text, input: RLP.Input, expected: Text)): TestLib.NamedTest {
+let encodingTests = Iter.map(testCasesIterable, func ((name: Text, input: RLP.Input, expected: Text)): TestLib.NamedTest {
   switch(input) {
-    case(#string(val)) { testInputVal(name, #string(val), expected) };
-    case(#number(val)) { testInputVal(name, #number(val), expected) };
-    case(#Uint8Array(val)) { testInputVal(name, #Uint8Array(val), expected) };
-    case(#List(val)) { testInputVal(name, #List(val), expected) };
-    case(#Null(val)) { testInputVal(name, #Null(val), expected) };
-    case(#Undefined(val)) { testInputVal(name, #Undefined(val), expected) };
+    case(#string(val)) { testEncodingVal(name, #string(val), expected) };
+    case(#number(val)) { testEncodingVal(name, #number(val), expected) };
+    case(#Uint8Array(val)) { testEncodingVal(name, #Uint8Array(val), expected) };
+    case(#List(val)) { testEncodingVal(name, #List(val), expected) };
+    case(#Null(val)) { testEncodingVal(name, #Null(val), expected) };
+    case(#Undefined(val)) { testEncodingVal(name, #Undefined(val), expected) };
   };
 });
 
 suite.run([
-    describe("RLP Encoding", Iter.toArray(tests))
+    describe("RLP Encoding", Iter.toArray(encodingTests))
 ]);

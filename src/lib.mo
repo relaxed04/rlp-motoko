@@ -23,20 +23,14 @@ module {
 
   type InputList = Buffer.Buffer<Input>;
 
-  type NestedUint8Array = {
+  public type Output = {
     #Uint8Array: Uint8Array;
-    #Nested: Buffer.Buffer<NestedUint8Array>;
+    #Nested: Buffer.Buffer<Output>;
   };
 
   type Decoded = {
-    data : NestedUint8Array;
+    data : Output;
     remainder : Buffer.Buffer<Nat8>;
-  };
-
-  type DecodedResult = {
-    #Nested: NestedUint8Array;
-    #Decoded: Decoded;
-    #Uint8Array: Uint8Array;
   };
 
 
@@ -76,20 +70,22 @@ module {
   // @param start
   // @param end
 
-  public func safeSlice(input: Uint8Array, start: Nat, end: Nat) : Uint8Array {
+  public func safeSlice(input: Uint8Array, start: Nat, end: Nat) : Uint8Array { // TODO switch this to return Result
     if (end > input.size()) { 
       D.trap("invalid RLP (safeSlice): end slice of Uint8Array out-of-bounds");
     };
     let output = Buffer.Buffer<Nat8>(end - start);
     var tracker = 0;
     loop {
-      if(tracker >= start) {
+      if(tracker >= end) {
+        return output;
+      }  
+      else if(tracker >= start) {
         output.add(input.get(tracker));
         tracker += 1;
-        if(tracker > end) {
-          return output;
-        };
-      };
+      } else {
+        tracker += 1;
+      }
     };
   };
 
@@ -102,7 +98,10 @@ module {
     if (v.get(0) == 0 and v.get(1) == 0) {
       D.trap("invalid RLP: extra zeros");
     };
-    return  switch(Hex.decode(Hex.encode(v.toArray()))){case(#ok(val)){val[0]};case(#err(err)){return D.trap("not a valid hex")}};
+    return switch(Hex.decode(Hex.encode(Buffer.toArray(v)))){
+      case(#ok(val)){ val[0] };
+      case(#err(err)){ return D.trap("not a valid hex") }
+    };
   };
 
   public func encodeLength(len: Nat, offset: Nat): Uint8Array {
@@ -124,7 +123,7 @@ module {
   * @param stream Is the input a stream (false by default)
   * @returns decoded Array of Uint8Arrays containing the original message
   **/
-  public func decode(input: Input): DecodedResult {
+  public func decode(input: Input): Output {
     switch(input) {
       case(#string(item)) {
         if(item.size() == 0) { 
@@ -158,14 +157,7 @@ module {
       D.trap("invalid RLP: remainder must be zero");
     };
 
-    return switch(decoded.data) {
-      case(#Nested(item)) {
-        #Nested(#Nested(item));
-      };
-      case(#Uint8Array(item)) {
-        #Uint8Array(item);
-      };
-    };
+    return decoded.data;
   };
 
   let threshold : Nat8 = 127; //7f matchr Hex.decode("7f"), val[0], D.trap("unreachable")
@@ -188,7 +180,7 @@ module {
       return {
         data = #Uint8Array(safeSlice(input, 0, 1));
         remainder = if (input.size() > 2)
-            safeSlice(input, 1, input.size() - 1)
+            safeSlice(input, 1, input.size())
           else
             Buffer.Buffer<Nat8>(1);
       };
@@ -209,10 +201,10 @@ module {
       if (length == 2 and data.get(0) < nullbyte) { 
         D.trap("invalid RLP encoding: invalid prefix, single byte < 0x80 are not prefixed");
       };
-
+      
       return {
         data = #Uint8Array(data);
-        remainder = safeSlice(input, Nat8.toNat(length), input.size() - 1);
+        remainder = safeSlice(input, Nat8.toNat(length), input.size());
       };
     }
     else if (firstByte <= threshold5) {
@@ -233,7 +225,7 @@ module {
       return {
         data = #Uint8Array(data);
         remainder = if (input.size() > Nat8.toNat(length + llength)) {
-          safeSlice(input, Nat8.toNat(length + llength), input.size() - 1);
+          safeSlice(input, Nat8.toNat(length + llength), input.size());
         }
         else {
           Buffer.Buffer<Nat8>(1);
@@ -242,9 +234,9 @@ module {
     }
     else if (firstByte <= threshold3) {
       // a list between  0-55 bytes long
-      let length = firstByte - threshold4;
+      let length = firstByte - threshold5;
       var innerRemainder = safeSlice(input, 1, Nat8.toNat(length));
-      let decoded = Buffer.Buffer<NestedUint8Array>(1);
+      let decoded = Buffer.Buffer<Output>(1);
       while (innerRemainder.size() > 0) {
         let d = _decode(innerRemainder);
         
@@ -255,7 +247,7 @@ module {
       return {
         data = #Nested(decoded);
         remainder = if (input.size() > Nat8.toNat(length)) {
-          safeSlice(input, Nat8.toNat(length), input.size() - 1);
+          safeSlice(input, Nat8.toNat(length), input.size());
         }
         else {
           Buffer.Buffer<Nat8>(1);
@@ -276,7 +268,7 @@ module {
 
       var innerRemainder = safeSlice(input,Nat8.toNat( llength), Nat8.toNat(totalLength));
 
-      let decoded = Buffer.Buffer<NestedUint8Array>(1);
+      let decoded = Buffer.Buffer<Output>(1);
       while (innerRemainder.size() > 0) {
         let d = _decode(innerRemainder);
         decoded.add(d.data);
@@ -286,7 +278,7 @@ module {
       return {
         data = #Nested(decoded);
         remainder = if (input.size() > Nat8.toNat(totalLength)) {
-          safeSlice(input, Nat8.toNat(totalLength), input.size() - 1);
+          safeSlice(input, Nat8.toNat(totalLength), input.size());
         }
         else {
           Buffer.Buffer<Nat8>(1);
@@ -347,7 +339,6 @@ module {
         str;
   };
 
-
   /** Transform anything into a Uint8Array */
   public func toBytes(v: Input): Uint8Array {
     switch(v) {
@@ -362,7 +353,8 @@ module {
           return toBuffer<Nat8>(result);
         };
         let str = Text.encodeUtf8(item);
-        return Buffer.fromArray(Blob.toArray(str));
+        let buf = Buffer.fromArray<Nat8>(Blob.toArray(str));
+        return buf;
       };
       case(#number(v)) {
         if(v == 0) {
