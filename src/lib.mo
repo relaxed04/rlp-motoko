@@ -6,11 +6,14 @@ import Iter "mo:base/Iter";
 import List "mo:base/List";
 import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
+import Result "mo:base/Result";
 import Text "mo:base/Text";
 
 module {
 
   public type Uint8Array = Buffer.Buffer<Nat8>;
+
+  type Result<T,E> = Result.Result<T, E>;
 
   public type Input = {
     #string : Text;
@@ -23,14 +26,9 @@ module {
 
   type InputList = Buffer.Buffer<Input>;
 
-  public type Output = {
+  public type Decoded = {
     #Uint8Array: Uint8Array;
-    #Nested: Buffer.Buffer<Output>;
-  };
-
-  type Decoded = {
-    data : Output;
-    remainder : Buffer.Buffer<Nat8>;
+    #Nested: Buffer.Buffer<Decoded>;
   };
 
 
@@ -41,27 +39,42 @@ module {
  * @param input Will be converted to Buffer<Nat8>
  * @returns Buffer<Nat8> of encoded data
  **/
-  public func encode(input: Input) : Uint8Array {
+  public func encode(input: Input) : Result<Uint8Array,Text> {
     switch(input) {
       case(#List(item)) {
         let output = Buffer.Buffer<Nat8>(1);
         for(thisItem in item.vals()) {
-          output.append(encode(thisItem));
+          switch(encode(thisItem)) {
+            case(#ok(val)) { output.append(val); };
+            case(#err(val)) { return #err val};
+          };
         };
-        let result = encodeLength(output.size(), 192);
-        result.append(output);
-        return result;
+
+        switch(encodeLength(output.size(), 192)) {
+          case(#ok(result)) { 
+            result.append(output);
+            return #ok(result);
+          };
+          case(#err(val)) { return #err(val)};
+        };
       };
       case(_){};
     };
-    let inputBuf = toBytes(input);
+    let inputBuf = switch(toBytes(input)) {
+      case(#ok(val)) { val };
+      case(#err(val)) { return #err(val) };
+    };
     if (inputBuf.size() == 1 and inputBuf.get(0) < 128) {
-      return inputBuf;
+      return #ok(inputBuf);
     };
 
-    let result = encodeLength(inputBuf.size(), 128);
-    result.append(inputBuf);
-    return result;
+    switch(encodeLength(inputBuf.size(), 128)) {
+      case(#ok(result)) { 
+        result.append(inputBuf);
+        return #ok(result);
+      };
+      case(#err(val)) { return #err(val)};
+    };
   };
 
   // Slices a Buffer<Nat8>, throws if the slice goes out-of-bounds of the Uint8Array.
@@ -70,15 +83,15 @@ module {
   // @param start
   // @param end
 
-  public func safeSlice(input: Uint8Array, start: Nat, end: Nat) : Uint8Array { // TODO switch this to return Result
+  public func safeSlice(input: Uint8Array, start: Nat, end: Nat) : Result<Uint8Array, Text> {
     if (end > input.size()) { 
-      D.trap("invalid RLP (safeSlice): end slice of Uint8Array out-of-bounds");
+      return #err("invalid RLP (safeSlice): end slice of Uint8Array out-of-bounds");
     };
     let output = Buffer.Buffer<Nat8>(end - start);
     var tracker = 0;
     loop {
       if(tracker >= end) {
-        return output;
+        return #ok(output);
       }  
       else if(tracker >= start) {
         output.add(input.get(tracker));
@@ -94,27 +107,31 @@ module {
   * @param v The value to parse
   * @param base The base to parse the integer into
   */
-  public func decodeLength(v: Uint8Array): Nat8 {
+  public func decodeLength(v: Uint8Array): Result<Nat8, Text> {
     if (v.get(0) == 0 and v.get(1) == 0) {
-      D.trap("invalid RLP: extra zeros");
+      return #err("invalid RLP: extra zeros");
     };
     return switch(Hex.decode(Hex.encode(Buffer.toArray(v)))){
-      case(#ok(val)){ val[0] };
-      case(#err(err)){ return D.trap("not a valid hex") }
+      case(#ok(val)){ #ok(val[0]) };
+      case(#err(err)){ return #err("not a valid hex") }
     };
   };
 
-  public func encodeLength(len: Nat, offset: Nat): Uint8Array {
+  public func encodeLength(len: Nat, offset: Nat): Result<Uint8Array, Text> {
     if (len < 56) {
-      return Buffer.fromArray([Nat8.fromNat(len) + Nat8.fromNat(offset)]);
+      return #ok(Buffer.fromArray([Nat8.fromNat(len) + Nat8.fromNat(offset)]));
     };
     let hexLength = numberToHex(len);
     let lLength = hexLength.size() / 2;
     let firstByte = numberToHex(offset + 55 + lLength);
-    let result = switch(Hex.decode(firstByte # hexLength)){case(#ok(val)){val};case(#err(err)){return D.trap("not a valid hex")}};
+    let result = switch(Hex.decode(firstByte # hexLength)){
+      case(#ok(val)){ val };
+      case(#err(err)){
+        return #err("not a valid hex")
+      }};
     let output = toBuffer<Nat8>(result);
 
-    return output;
+    return #ok(output);
   };
 
   /**
@@ -123,72 +140,90 @@ module {
   * @param stream Is the input a stream (false by default)
   * @returns decoded Array of Uint8Arrays containing the original message
   **/
-  public func decode(input: Input): Output {
+  public func decode(input: Input): Result<Decoded, Text> {
     switch(input) {
       case(#string(item)) {
         if(item.size() == 0) { 
-          return #Uint8Array(Buffer.Buffer(1));
+          return #ok(#Uint8Array(Buffer.Buffer(1)));
         };
       };
       case(#number(item)) {
         if(item == 0) { 
-          return #Uint8Array(Buffer.Buffer(1));
+          return #ok(#Uint8Array(Buffer.Buffer(1)));
         };
       };
       case(#Uint8Array(item)) {
         if(item.size() == 0) {
-          return #Uint8Array(Buffer.Buffer(1));
+          return #ok(#Uint8Array(Buffer.Buffer(1)));
         };
       };
       case(#List(item)) {
         if(item.size() == 0) { 
-          return #Uint8Array(Buffer.Buffer(1));
+          return #ok(#Uint8Array(Buffer.Buffer(1)));
         };
       };
       case(#Null) {
-        return #Uint8Array(Buffer.Buffer(1));
+        return #ok(#Uint8Array(Buffer.Buffer(1)));
       };
       case(#Undefined) {
-        return #Uint8Array(Buffer.Buffer(1));
+        return #ok(#Uint8Array(Buffer.Buffer(1)));
       };
       case(_){};
     };
 
-    let inputBytes = toBytes(input);
+    let inputBytes = switch(toBytes(input)) {
+      case(#ok(val)) { val };
+      case(#err(val)) { return #err(val) };
+    };
+    
     let decoded = _decode(inputBytes);
 
-
-    if (decoded.remainder.size() != 0) {
-      D.trap("invalid RLP: remainder must be zero");
+    switch(_decode(inputBytes)) {
+      case(#ok(decoded)) {     
+        if (decoded.remainder.size() != 0) {
+          return #err("invalid RLP: remainder must be zero");
+        };
+        return #ok(decoded.data); };
+      case(#err(val)) { return #err(val) };
     };
-
-    return decoded.data;
   };
 
-  let threshold : Nat8 = 127; //7f matchr Hex.decode("7f"), val[0], D.trap("unreachable")
-  let threshold2 : Nat8 = 183; //b7 matchr Hex.decode("b7"), val[0], D.trap("unreachable")
-  let threshold3 : Nat8 = 247;//f7 switch(Hex.decode("f7")){case(#ok(val)){val[0]};case(#err(err)){D.trap("unreachable")}};
+  let threshold : Nat8 = 127; // 7f
+  let threshold2 : Nat8 = 183; // b7
+  let threshold3 : Nat8 = 247;// f7
  
-  let threshold4 : Nat8 = 182; //b6  matchr Hex.decode("b6"), val[0], D.trap("unreachable")
-  let threshold5 : Nat8 = 191; //bf matchr Hex.decode("bf"), val[0], D.trap("unreachable")
-  let nullbyte : Nat8 = 128; //80 matchr Hex.decode("80"), val[0], D.trap("unreachable")
+  let threshold4 : Nat8 = 182; // b6
+  let threshold5 : Nat8 = 191; // bf
+  let nullbyte : Nat8 = 128; // 80
 
+
+  type Output = {
+    data : Decoded;
+    remainder : Buffer.Buffer<Nat8>;
+  };
 
   /** Decode an input with RLP */
-  private func _decode(input: Uint8Array): Decoded {
+  private func _decode(input: Uint8Array): Result<Output, Text> {
     
     var decoded = [];
     var firstByte = input.get(0);
 
     // a single byte whose value is in the [0x00, 0x7f] range, that byte is its own RLP encoding.
     if (firstByte <= threshold) {
-      return {
-        data = #Uint8Array(safeSlice(input, 0, 1));
-        remainder = if (input.size() > 2)
-            safeSlice(input, 1, input.size())
-          else
+        let inputSlice = switch(safeSlice(input, 0, 1)) {
+          case(#ok(val)) { val };
+          case(#err(val)) { return #err(val) };
+        };
+      return #ok({
+        data = #Uint8Array(inputSlice);
+        remainder = if (input.size() > 2) {
+          switch(safeSlice(input, 1, input.size())) {
+            case(#ok(val)) { val };
+            case(#err(val)) { return #err(val) };
+          };
+        } else
             Buffer.Buffer<Nat8>(1);
-      };
+      });
     }
     else if (firstByte <= threshold2) {
       // string is 0-55 bytes long. A single byte with value 0x80 plus the length of the string followed by the string
@@ -200,95 +235,139 @@ module {
         Buffer.Buffer<Nat8>(1);
       }
       else {
-        safeSlice(input, 1, Nat8.toNat(length));
+        switch(safeSlice(input, 1, Nat8.toNat(length))) {
+          case(#ok(val)) { val };
+          case(#err(val)) { return #err(val) };
+        };
       };
 
       if (length == 2 and data.get(0) < nullbyte) { 
-        D.trap("invalid RLP encoding: invalid prefix, single byte < 0x80 are not prefixed");
+        return #err("invalid RLP encoding: invalid prefix, single byte < 0x80 are not prefixed");
       };
+
+      let remainderSlice = switch(safeSlice(input, Nat8.toNat(length), input.size())) {
+          case(#ok(val)) { val };
+          case(#err(val)) { return #err(val) };
+        };
       
-      return {
+      return #ok({
         data = #Uint8Array(data);
-        remainder = safeSlice(input, Nat8.toNat(length), input.size());
-      };
+        remainder = remainderSlice;
+      });
     }
     else if (firstByte <= threshold5) {
       // string is greater than 55 bytes long. A single byte with the value (0xb7 plus the length of the length),
       // followed by the length, followed by the string
       let llength = firstByte - threshold4;
       if (Nat.sub(input.size(),1) < Nat8.toNat(llength)) {
-        D.trap("invalid RLP: not enough bytes for string length");
+        return #err("invalid RLP: not enough bytes for string length");
+      };
+      let inputSlice = switch(safeSlice(input, 1, Nat8.toNat(llength))) {
+        case(#ok(val)) { val };
+        case(#err(val)) { return #err(val) };
       };
 
-      let length = decodeLength(safeSlice(input, 1, Nat8.toNat(llength)));
+      let length = switch(decodeLength(inputSlice)) {
+        case(#ok(val)) { val };
+        case(#err(val)) { return #err(val) };
+      };
       if (length <= 55) {
-        D.trap("invalid RLP: expected string length to be greater than 55");
+        return #err("invalid RLP: expected string length to be greater than 55");
       };
 
-      let data = safeSlice(input, Nat8.toNat(llength), Nat8.toNat(length + llength));
+      let data = switch(safeSlice(input, Nat8.toNat(llength), Nat8.toNat(length + llength))) {
+        case(#ok(val)) { val };
+        case(#err(val)) { return #err(val) };
+      };
 
-      return {
+      return #ok({
         data = #Uint8Array(data);
         remainder = if (input.size() > Nat8.toNat(length + llength)) {
-          safeSlice(input, Nat8.toNat(length + llength), input.size());
-        }
-        else {
+          switch(safeSlice(input, Nat8.toNat(length + llength), input.size())) {
+            case(#ok(val)) { val };
+            case(#err(val)) { return #err(val) };
+          };
+        } else {
           Buffer.Buffer<Nat8>(1);
         };
-      };
+      });
     }
     else if (firstByte <= threshold3) {
       // a list between  0-55 bytes long
       let length = firstByte - threshold5;
-      var innerRemainder = safeSlice(input, 1, Nat8.toNat(length));
-      let decoded = Buffer.Buffer<Output>(1);
+      var innerRemainder = switch(safeSlice(input, 1, Nat8.toNat(length))) {
+            case(#ok(val)) { val };
+            case(#err(val)) { return #err(val) };
+          };
+      let decoded = Buffer.Buffer<Decoded>(1);
       while (innerRemainder.size() > 0) {
-        let d = _decode(innerRemainder);
+
+        let d = switch(_decode(innerRemainder)) {
+          case(#ok(val)) { val };
+          case(#err(val)) { return #err(val)};
+        };
         
         decoded.add(d.data);
         innerRemainder := d.remainder;
       };
 
-      return {
+      return #ok({
         data = #Nested(decoded);
         remainder = if (input.size() > Nat8.toNat(length)) {
-          safeSlice(input, Nat8.toNat(length), input.size());
-        }
-        else {
+          switch(safeSlice(input, Nat8.toNat(length), input.size())) {
+            case(#ok(val)) { val };
+            case(#err(val)) { return #err(val) };
+          };
+        } else {
           Buffer.Buffer<Nat8>(1);
         };
-      };
+      });
     }
     else {
       // a list  over 55 bytes long
       let llength = firstByte - threshold4;
-      let length = decodeLength(safeSlice(input, 1, Nat8.toNat(llength)));
+      let inputSlice = switch(safeSlice(input, 1, Nat8.toNat(llength))) {
+        case(#ok(val)) { val };
+        case(#err(val)) { return #err(val) };
+      };
+      let length = switch(decodeLength(inputSlice)) {
+        case(#ok(val)) { val };
+        case(#err(val)) { return #err(val) };
+      };
       if (length < 56) {
-        D.trap("invalid RLP: encoded list too short");
+        return #err("invalid RLP: encoded list too short");
       };
       let totalLength = llength + length;
       if (Nat8.toNat(totalLength) > input.size()) {
-        D.trap("invalid RLP: total length is larger than the data");
+        return #err("invalid RLP: total length is larger than the data");
       };
 
-      var innerRemainder = safeSlice(input,Nat8.toNat( llength), Nat8.toNat(totalLength));
+      var innerRemainder = switch(safeSlice(input,Nat8.toNat( llength), Nat8.toNat(totalLength))) {
+        case(#ok(val)) { val };
+        case(#err(val)) { return #err(val) };
+      };
 
-      let decoded = Buffer.Buffer<Output>(1);
+      let decoded = Buffer.Buffer<Decoded>(1);
       while (innerRemainder.size() > 0) {
-        let d = _decode(innerRemainder);
+        let d = switch(_decode(innerRemainder)) {
+          case(#ok(val)) { val };
+          case(#err(val)) { return #err(val)};
+        };
         decoded.add(d.data);
         innerRemainder := d.remainder;
       };
 
-      return {
+      return #ok({
         data = #Nested(decoded);
         remainder = if (input.size() > Nat8.toNat(totalLength)) {
-          safeSlice(input, Nat8.toNat(totalLength), input.size());
-        }
-        else {
+          switch(safeSlice(input, Nat8.toNat(totalLength), input.size())) {
+            case(#ok(val)) { val };
+            case(#err(val)) { return #err(val) };
+          };
+        } else {
           Buffer.Buffer<Nat8>(1);
         };
-      };
+      });
     };
   };
 
@@ -345,39 +424,39 @@ module {
   };
 
   /** Transform anything into a Uint8Array */
-  public func toBytes(v: Input): Uint8Array {
+  public func toBytes(v: Input): Result<Uint8Array, Text> {
     switch(v) {
       case(#Uint8Array(item)) {
-        return item;
+        return #ok(item);
       };
       case(#string(item)) {
         if (isHexPrefixed(item)) {
           let result = switch(Hex.decode(padToEven(stripHexPrefix(item)))){
             case(#ok(val)){ val };
-            case(#err(err)){ D.trap("nat a valid hex") }};
-          return toBuffer<Nat8>(result);
+            case(#err(err)){ return #err("nat a valid hex") }};
+          return #ok(toBuffer<Nat8>(result));
         };
         let str = Text.encodeUtf8(item);
         let buf = Buffer.fromArray<Nat8>(Blob.toArray(str));
-        return buf;
+        return #ok(buf);
       };
       case(#number(v)) {
         if(v == 0) {
-          return Buffer.Buffer<Nat8>(0);
+          return #ok(Buffer.Buffer<Nat8>(0));
         } else {
           let byteArray = natToBytes(v);
-          return Buffer.fromArray(byteArray);
+          return #ok(Buffer.fromArray(byteArray));
         }
       };
       case(#Null) {
-        return Buffer.Buffer<Nat8>(1);
+        return #ok(Buffer.Buffer<Nat8>(1));
       };
       case(#Undefined) {
-        return Buffer.Buffer<Nat8>(1);
+        return #ok(Buffer.Buffer<Nat8>(1));
       };
       case(_){};
     };
-    D.trap("toBytes: received unsupported type ");
+    return #err("toBytes: received unsupported type ");
   };
 
   private func toBuffer<T>(x :[T]) : Buffer.Buffer<T> {

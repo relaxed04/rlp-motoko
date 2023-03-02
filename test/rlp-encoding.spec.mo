@@ -112,12 +112,16 @@ func convertNat8BufferToHexText(buffer : Buffer.Buffer<Nat8>): Text {
 func testEncodingVal(name: Text, input : RLP.Input, expected: Text) : TestLib.NamedTest {
   return it(name, func () : Bool {
     let encoded = RLP.encode(input);
-    let encodedHexText = convertNat8BufferToHexText(encoded);
-    let result = encodedHexText == expected;
-    if ( not result ) {
-      Debug.print("expected: " # expected # " " # "result: " # encodedHexText)
+    switch(encoded) {
+      case(#ok(val)) { 
+        let encodedHexText = convertNat8BufferToHexText(val);
+        let result = encodedHexText == expected;
+        if ( not result ) {
+          Debug.print("expected: " # expected # " " # "result: " # encodedHexText)
+        };
+        return result; };
+      case(#err(val)) { return false };
     };
-  return result;
 });
 };
 

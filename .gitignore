@@ -7,3 +7,6 @@ node_modules/
 
 #wasm
 *.wasm
+
+#testing scratchpad
+temp.spec.mo
