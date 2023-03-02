@@ -210,19 +210,21 @@ module {
 
     // a single byte whose value is in the [0x00, 0x7f] range, that byte is its own RLP encoding.
     if (firstByte <= threshold) {
-        let inputSlice = switch(safeSlice(input, 0, 1)) {
+      let inputSlice = switch(safeSlice(input, 0, 1)) {
           case(#ok(val)) { val };
           case(#err(val)) { return #err(val) };
         };
-      return #ok({
-        data = #Uint8Array(inputSlice);
-        remainder = if (input.size() > 2) {
+      let _remainder = if (input.size() > 2) {
           switch(safeSlice(input, 1, input.size())) {
             case(#ok(val)) { val };
             case(#err(val)) { return #err(val) };
           };
-        } else
-            Buffer.Buffer<Nat8>(1);
+        } else {
+          Buffer.Buffer<Nat8>(1);
+        };
+      return #ok({
+        data = #Uint8Array(inputSlice);
+        remainder = _remainder
       });
     }
     else if (firstByte <= threshold2) {
@@ -279,10 +281,7 @@ module {
         case(#ok(val)) { val };
         case(#err(val)) { return #err(val) };
       };
-
-      return #ok({
-        data = #Uint8Array(data);
-        remainder = if (input.size() > Nat8.toNat(length + llength)) {
+      let _remainder = if (input.size() > Nat8.toNat(length + llength)) {
           switch(safeSlice(input, Nat8.toNat(length + llength), input.size())) {
             case(#ok(val)) { val };
             case(#err(val)) { return #err(val) };
@@ -290,6 +289,10 @@ module {
         } else {
           Buffer.Buffer<Nat8>(1);
         };
+
+      return #ok({
+        data = #Uint8Array(data);
+        remainder = _remainder;
       });
     }
     else if (firstByte <= threshold3) {
@@ -311,9 +314,7 @@ module {
         innerRemainder := d.remainder;
       };
 
-      return #ok({
-        data = #Nested(decoded);
-        remainder = if (input.size() > Nat8.toNat(length)) {
+      let _remainder = if (input.size() > Nat8.toNat(length)) {
           switch(safeSlice(input, Nat8.toNat(length), input.size())) {
             case(#ok(val)) { val };
             case(#err(val)) { return #err(val) };
@@ -321,6 +322,10 @@ module {
         } else {
           Buffer.Buffer<Nat8>(1);
         };
+
+      return #ok({
+        data = #Nested(decoded);
+        remainder = _remainder;
       });
     }
     else {
@@ -356,10 +361,7 @@ module {
         decoded.add(d.data);
         innerRemainder := d.remainder;
       };
-
-      return #ok({
-        data = #Nested(decoded);
-        remainder = if (input.size() > Nat8.toNat(totalLength)) {
+      let _remainder = if (input.size() > Nat8.toNat(totalLength)) {
           switch(safeSlice(input, Nat8.toNat(totalLength), input.size())) {
             case(#ok(val)) { val };
             case(#err(val)) { return #err(val) };
@@ -367,6 +369,9 @@ module {
         } else {
           Buffer.Buffer<Nat8>(1);
         };
+      return #ok({
+        data = #Nested(decoded);
+        remainder = _remainder;
       });
     };
   };
