@@ -130,6 +130,11 @@ module {
           return #Uint8Array(Buffer.Buffer(1));
         };
       };
+      case(#number(item)) {
+        if(item == 0) { 
+          return #Uint8Array(Buffer.Buffer(1));
+        };
+      };
       case(#Uint8Array(item)) {
         if(item.size() == 0) {
           return #Uint8Array(Buffer.Buffer(1));
