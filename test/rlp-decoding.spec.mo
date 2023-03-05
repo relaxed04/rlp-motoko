@@ -1,43 +1,46 @@
 import TestLib = "mo:testing/Suite";
 import D "mo:base/Debug";
 import Nat8 "mo:base/Nat8";
-import RLP "../src/lib";
+import RLP "../src/rlp";
 import Hex "mo:encoding/Hex";
 import Buffer "mo:base/Buffer";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
 import Debug "mo:base/Debug";
 import List "mo:base/List";
+import Result "mo:base/Result";
+
+type Result<T,E> = Result.Result<T, E>;
 
 let { describe; it; Suite } = TestLib;
 
 let suite = Suite();
 
-let testCases: [(Text, RLP.Input, RLP.Decoded)] = [
-  ("integer0",  #number(0), #Uint8Array(Buffer.fromArray<Nat8>([]))),
-  ("integer1",  #number(1), #Uint8Array(Buffer.fromArray<Nat8>([1]))),
-  ("integer127",  #number(127), #Uint8Array(Buffer.fromArray<Nat8>([127]))),
-  ("integer128",  #number(128), #Uint8Array(Buffer.fromArray<Nat8>([]))),
-  ("integerEmptyList",  #number(192), #Nested(Buffer.fromArray<RLP.Decoded>([]))),
+let testCases: [(Text, RLP.Input, Result<RLP.Decoded, Text>)] = [
+  ("integer0",  #number(0), #ok(#Uint8Array(Buffer.fromArray<Nat8>([])))),
+  ("integer1",  #number(1), #ok(#Uint8Array(Buffer.fromArray<Nat8>([1])))),
+  ("integer127",  #number(127), #ok(#Uint8Array(Buffer.fromArray<Nat8>([127])))),
+  ("integer128",  #number(128),#ok( #Uint8Array(Buffer.fromArray<Nat8>([])))),
+  ("integerEmptyList",  #number(192), #ok(#Nested(Buffer.fromArray<RLP.Decoded>([])))),
 
-  ("hexString7f",  #string("0x7f"), #Uint8Array(Buffer.fromArray<Nat8>([127]))),
-  ("hexString80",  #string("0x80"), #Uint8Array(Buffer.fromArray<Nat8>([]))),
-  ("hexString8180",  #string("0x8180"), #Uint8Array(Buffer.fromArray<Nat8>([128]))),
-  ("hexString81ff",  #string("0x81ff"), #Uint8Array(Buffer.fromArray<Nat8>([255]))),
-  ("hexString123",  #string("0x83010203"), #Uint8Array(Buffer.fromArray<Nat8>([1,2,3]))),
-  ("hexStringEmptyList",  #string("0xc0"), #Nested(Buffer.fromArray<RLP.Decoded>([]))),
-  ("hexShortString",  #string("0x83646f67"), #Uint8Array(Buffer.fromArray<Nat8>([ 100, 111, 103 ]))),
+  ("hexString7f",  #string("0x7f"), #ok(#Uint8Array(Buffer.fromArray<Nat8>([127])))),
+  ("hexString80",  #string("0x80"), #ok(#Uint8Array(Buffer.fromArray<Nat8>([])))),
+  ("hexString8180",  #string("0x8180"), #ok(#Uint8Array(Buffer.fromArray<Nat8>([128])))),
+  ("hexString81ff",  #string("0x81ff"), #ok(#Uint8Array(Buffer.fromArray<Nat8>([255])))),
+  ("hexString123",  #string("0x83010203"), #ok(#Uint8Array(Buffer.fromArray<Nat8>([1,2,3])))),
+  ("hexStringEmptyList",  #string("0xc0"), #ok(#Nested(Buffer.fromArray<RLP.Decoded>([])))),
+  ("hexShortString",  #string("0x83646f67"), #ok(#Uint8Array(Buffer.fromArray<Nat8>([ 100, 111, 103 ])))),
   ("hexStringNestedEmptyList",  #string("0xc4c2c0c0c0"), // [[[], []], []]
-    #Nested(Buffer.fromArray<RLP.Decoded>([
+    #ok(#Nested(Buffer.fromArray<RLP.Decoded>([
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Nested(Buffer.fromArray<RLP.Decoded>([])),
         #Nested(Buffer.fromArray<RLP.Decoded>([]))
       ])),
       #Nested(Buffer.fromArray<RLP.Decoded>([]))
-    ]))
+    ])))
   ),
   ("hexStringNestedList",  #string("0xc7c4c101c102c103"), // [[[1], [2]], [3]]
-    #Nested(Buffer.fromArray<RLP.Decoded>([
+    #ok(#Nested(Buffer.fromArray<RLP.Decoded>([
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Nested(Buffer.fromArray<RLP.Decoded>([
           #Uint8Array(Buffer.fromArray<Nat8>([01]))
@@ -49,27 +52,30 @@ let testCases: [(Text, RLP.Input, RLP.Decoded)] = [
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Uint8Array(Buffer.fromArray<Nat8>([03]))
       ]))
-    ]))
+    ])))
   ),
 
-  ("byteArray7f",  #Uint8Array(Buffer.fromArray<Nat8>([127])), #Uint8Array(Buffer.fromArray<Nat8>([127]))),
-  ("byteArray80", #Uint8Array(Buffer.fromArray<Nat8>([128])), #Uint8Array(Buffer.fromArray<Nat8>([]))),
-  ("byteArray8180", #Uint8Array(Buffer.fromArray<Nat8>([129, 128])), #Uint8Array(Buffer.fromArray<Nat8>([128]))),
-  ("byteArray81ff", #Uint8Array(Buffer.fromArray<Nat8>([129, 255])), #Uint8Array(Buffer.fromArray<Nat8>([255]))),
-  ("byteArray123",  #Uint8Array(Buffer.fromArray<Nat8>([131,1,2,3])), #Uint8Array(Buffer.fromArray<Nat8>([1,2,3]))),
+  ("hexStringError7f7f",  #string("0x7f7f"), #err("invalid RLP: remainder must be zero")),
+
+
+  ("byteArray7f",  #Uint8Array(Buffer.fromArray<Nat8>([127])), #ok(#Uint8Array(Buffer.fromArray<Nat8>([127])))),
+  ("byteArray80", #Uint8Array(Buffer.fromArray<Nat8>([128])), #ok(#Uint8Array(Buffer.fromArray<Nat8>([])))),
+  ("byteArray8180", #Uint8Array(Buffer.fromArray<Nat8>([129, 128])), #ok(#Uint8Array(Buffer.fromArray<Nat8>([128])))),
+  ("byteArray81ff", #Uint8Array(Buffer.fromArray<Nat8>([129, 255])), #ok(#Uint8Array(Buffer.fromArray<Nat8>([255])))),
+  ("byteArray123",  #Uint8Array(Buffer.fromArray<Nat8>([131,1,2,3])), #ok(#Uint8Array(Buffer.fromArray<Nat8>([1,2,3])))),
   ("byteArrayNestedEmptyLists",  
     #Uint8Array(Buffer.fromArray<Nat8>([196,194,192,192,192])), // [[[], []], []]
-    #Nested(Buffer.fromArray<RLP.Decoded>([
+    #ok(#Nested(Buffer.fromArray<RLP.Decoded>([
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Nested(Buffer.fromArray<RLP.Decoded>([])),
         #Nested(Buffer.fromArray<RLP.Decoded>([]))
       ])),
       #Nested(Buffer.fromArray<RLP.Decoded>([]))
-  ]))
+  ])))
   ),
   ("byteArrayNestedLists",
     #Uint8Array(Buffer.fromArray<Nat8>([199, 196, 193, 1, 193, 2, 193, 3])), // [[[1], [2]], [3]]
-    #Nested(Buffer.fromArray<RLP.Decoded>([
+    #ok(#Nested(Buffer.fromArray<RLP.Decoded>([
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Nested(Buffer.fromArray<RLP.Decoded>([
           #Uint8Array(Buffer.fromArray<Nat8>([01]))
@@ -81,11 +87,11 @@ let testCases: [(Text, RLP.Input, RLP.Decoded)] = [
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Uint8Array(Buffer.fromArray<Nat8>([03]))
       ]))
-    ]))
+    ])))
   ),
   ("byteArrayNestedListsOfDifferentTypes",
     #Uint8Array(Buffer.fromArray<Nat8>([ 210, 207, 200, 131, 100, 111, 103, 131,  99,  97, 116, 197, 132,  98, 105, 114, 100, 193, 3 ])), // [[["dog", "cat"], ["bird"]], [3]]
-    #Nested(Buffer.fromArray<RLP.Decoded>([
+    #ok(#Nested(Buffer.fromArray<RLP.Decoded>([
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Nested(Buffer.fromArray<RLP.Decoded>([
           #Uint8Array(Buffer.fromArray<Nat8>([100, 111, 103])),
@@ -98,7 +104,7 @@ let testCases: [(Text, RLP.Input, RLP.Decoded)] = [
       #Nested(Buffer.fromArray<RLP.Decoded>([
         #Uint8Array(Buffer.fromArray<Nat8>([03]))
       ]))
-    ]))
+    ])))
   ),
 ];
 
@@ -168,24 +174,31 @@ func flattenResult(result: RLP.Decoded): RLP.Uint8Array {
   };
 };
 
-func testDecodingVal(name: Text, input: RLP.Input, expected: RLP.Decoded) : TestLib.NamedTest {
+func testDecodingVal(name: Text, input: RLP.Input, expectedResult: Result<RLP.Decoded, Text>) : TestLib.NamedTest {
   return it(name, func () : Bool {
     let decoded = RLP.decode(input);
     switch(decoded) {
       case(#ok(val)) { 
-        let result = compareDecodedOutput(val, expected);
-        if ( not result ) {
-          let flattenedOutput = flattenResult(val);
-          let flattenedExpected = flattenResult(expected);
-          let outputText = convertNat8BufferToHexText(flattenedOutput);
-          let expectedText = convertNat8BufferToHexText(flattenedExpected);
-          Debug.print("expected: " # expectedText # " " # "result: " # outputText)
+        switch(expectedResult) {
+          case(#ok(expected)) {
+            let result = compareDecodedOutput(val, expected);
+            if ( not result ) {
+              let flattenedOutput = flattenResult(val);
+              let flattenedExpected = flattenResult(expected);
+              let outputText = convertNat8BufferToHexText(flattenedOutput);
+              let expectedText = convertNat8BufferToHexText(flattenedExpected);
+              Debug.print("expected: " # expectedText # " " # "result: " # outputText)
+            };
+            return result;
+            };
+          case(#err(err)) { return false };
         };
-        return result;
       };
       case(#err(val)) {
-        Debug.print(val);
-        return false;
+        switch(expectedResult) {
+          case(#ok(expected)) { return false };
+          case(#err(err)) { return true };
+        };
       };
     };
 
@@ -194,7 +207,7 @@ func testDecodingVal(name: Text, input: RLP.Input, expected: RLP.Decoded) : Test
 
 let testCasesIterable = Iter.fromArray(testCases);
 
-let decodingTests = Iter.map(testCasesIterable, func ((name: Text, input: RLP.Input, expected: RLP.Decoded)): TestLib.NamedTest {
+let decodingTests = Iter.map(testCasesIterable, func ((name: Text, input: RLP.Input, expected: Result<RLP.Decoded, Text>)): TestLib.NamedTest {
   return testDecodingVal(name, input, expected);
 });
 
