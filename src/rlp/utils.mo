@@ -8,7 +8,7 @@ import Nat "mo:base/Nat";
 import Nat8 "mo:base/Nat8";
 import Result "mo:base/Result";
 import Text "mo:base/Text";
-import Types "types";
+import Types "../types";
 
 
 module {

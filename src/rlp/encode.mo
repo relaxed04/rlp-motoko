@@ -4,7 +4,7 @@ import Iter "mo:base/Iter";
 import Nat8 "mo:base/Nat8";
 import Result "mo:base/Result";
 import Utils "utils";
-import Types "types";
+import Types "../types";
 
 module {
   type Result<T,E> = Result.Result<T, E>;

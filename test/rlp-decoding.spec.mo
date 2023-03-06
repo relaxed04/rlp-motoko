@@ -1,7 +1,7 @@
 import TestLib = "mo:testing/Suite";
 import D "mo:base/Debug";
 import Nat8 "mo:base/Nat8";
-import RLP "../src/rlp";
+import RLP "../src";
 import Hex "mo:encoding/Hex";
 import Buffer "mo:base/Buffer";
 import Iter "mo:base/Iter";

@@ -1,5 +1,5 @@
-import RLPEncode "encode";
-import RLPDecode "decode";
+import RLPEncode "rlp/encode";
+import RLPDecode "rlp/decode";
 import Types "types";
 import Result "mo:base/Result";
 

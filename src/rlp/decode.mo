@@ -1,4 +1,4 @@
-import Types "types";
+import Types "../types";
 import Result "mo:base/Result";
 import Utils "utils";
 import Buffer "mo:base/Buffer";
