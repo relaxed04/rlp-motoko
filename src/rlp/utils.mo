@@ -73,7 +73,7 @@ module {
     if (end > input.size()) { 
       return #err("invalid RLP (safeSlice): end slice of Uint8Array out-of-bounds");
     };
-    if (start > (input.size() - 1)) { 
+    if (start > (Nat.sub(input.size(), 1))) { 
       return #ok(Buffer.Buffer<Nat8>(1));
     };
     if(start > end) {

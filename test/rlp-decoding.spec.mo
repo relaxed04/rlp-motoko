@@ -211,16 +211,16 @@ func testDecodingVal(name: Text, input: Types.Input, expectedResult: Result<Type
         };
       };
     };
-});
+  });
 };
 
-let testCases = Array.append(testCasesErrResult, testCasesOkResult);
-let testCasesIterable = Iter.fromArray(testCases);
+let testCases = Buffer.fromArray<(Text, Types.Input, Result<Types.Decoded, Text>)>(testCasesErrResult);
+testCases.append(Buffer.fromArray(testCasesOkResult));
 
-let decodingTests = Iter.map(testCasesIterable, func ((name: Text, input: Types.Input, expected: Result<Types.Decoded, Text>)): TestLib.NamedTest {
+let decodingTests = Iter.map(testCases.vals(), func ((name: Text, input: Types.Input, expected: Result<Types.Decoded, Text>)): TestLib.NamedTest {
   return testDecodingVal(name, input, expected);
 });
 
 suite.run([
-    describe("RLP Decoding", Iter.toArray(decodingTests))
+  describe("RLP Decoding", Iter.toArray(decodingTests))
 ]);

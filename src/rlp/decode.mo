@@ -46,7 +46,6 @@ module {
       case(#Undefined) {
         return #ok(#Uint8Array(Buffer.Buffer(1)));
       };
-      case(_){};
     };
 
     let inputBytes = switch(Utils.toBytes(input)) {

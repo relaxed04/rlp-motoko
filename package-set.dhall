@@ -14,7 +14,7 @@ let additions = [
     , dependencies = [ "array" ]
   },
   { name = "testing"
-    , version = "master" -- TODO: replace with fixed version.
+    , version = "v0.1.1"
     , repo = "https://github.com/internet-computer/testing"
     , dependencies = [] : List Text
     }
