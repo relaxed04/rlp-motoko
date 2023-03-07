@@ -2,7 +2,7 @@ import TestLib = "mo:testing/Suite";
 import D "mo:base/Debug";
 import Nat8 "mo:base/Nat8";
 import RLP "../src";
-import Hex "mo:encoding/Hex";
+import Hex "../src/hex";
 import Buffer "mo:base/Buffer";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
@@ -120,7 +120,7 @@ let testCases: [(Text, Types.Input, Text)] = [
 
 
 func convertNat8BufferToHexText(buffer : Buffer.Buffer<Nat8>): Text {
-  return Buffer.foldLeft<Text, Nat8>(buffer, "", func (acc, curr) { acc # Hex.encodeByte(curr) });
+  return Buffer.foldLeft<Text, Nat8>(buffer, "", func (acc, curr) { acc # Hex.encodeW8(curr) });
 };
 
 let testCasesIterable = Iter.fromArray(testCases);

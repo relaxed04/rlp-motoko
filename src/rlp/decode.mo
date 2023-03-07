@@ -4,7 +4,7 @@ import Utils "utils";
 import Buffer "mo:base/Buffer";
 import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
-import Hex "mo:encoding/Hex";
+import Hex "../hex";
 
 module {
   type Result<T,E> = Result.Result<T, E>;

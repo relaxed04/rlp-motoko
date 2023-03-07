@@ -1,5 +1,5 @@
 import Buffer "mo:base/Buffer";
-import Hex "mo:encoding/Hex";
+import Hex "../hex";
 import Iter "mo:base/Iter";
 import Nat8 "mo:base/Nat8";
 import Result "mo:base/Result";

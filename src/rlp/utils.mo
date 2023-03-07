@@ -1,7 +1,7 @@
 import Buffer "mo:base/Buffer";
 import Blob "mo:base/Blob";
 import D "mo:base/Debug";
-import Hex "mo:encoding/Hex";
+import Hex "../hex";
 import Iter "mo:base/Iter";
 import List "mo:base/List";
 import Nat "mo:base/Nat";
