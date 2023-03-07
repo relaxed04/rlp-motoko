@@ -21,11 +21,29 @@ Include it in your `vessel.dhall` file dependencies:
 
 ```motoko
 import RLP "mo:rlp";
+import RLPTypes "mo:rlp/types";
+import D "mo:base/Debug";
 
-let result = switch(RLP.encode(#string("dog"))) {
+let encoded: RLPTypes.Uint8Array = switch(RLP.encode(#string("dog"))) {
   case(#ok(val)) { val };
   case(#err(val)) { 
-    // Do something with the error
+    D.trap("do something with error");
+   };
+};
+
+let decoded: RLPTypes.Decoded = switch(RLP.decode(#Uint8Array(encoded))) {
+  case(#ok(val)) { val };
+  case(#err(val)) { 
+    D.trap("do something with error");
+   };
+};
+
+// SAME AS
+
+let decoded2: RLPTypes.Decoded = switch(RLP.decode(#Uint8Array(Buffer.fromArray<Nat8>([131, 100, 111, 103])))) {
+  case(#ok(val)) { val };
+  case(#err(val)) { 
+    D.trap("do something with error");
    };
 };
 
