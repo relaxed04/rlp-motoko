@@ -4,6 +4,8 @@ import Utils "utils";
 import Buffer "mo:base/Buffer";
 import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
+import Iter "mo:base/Iter";
+import Nat64 "mo:base/Nat64";
 import Hex "../hex";
 
 module {
@@ -100,13 +102,13 @@ module {
 
   private func decodeShortString(input: Types.Uint8Array): Result<Output, Text> {
     let firstByte = input.get(0);
-    let length:  Nat8 = firstByte - threshold;
+    let length = Nat8.toNat(firstByte - threshold);
 
     let dataSlice = if (firstByte == nullbyte) {
       Buffer.Buffer<Nat8>(1);
     }
     else {
-      switch(Utils.safeSlice(input, 1, Nat8.toNat(length))) {
+      switch(Utils.safeSlice(input, 1, length)) {
         case(#ok(val)) { val };
         case(#err(val)) { return #err(val) };
       };
@@ -116,7 +118,7 @@ module {
       return #err("invalid RLP encoding: invalid prefix, single byte < 0x80 are not prefixed");
     };
 
-    let remainderSlice = switch(Utils.safeSlice(input, Nat8.toNat(length), input.size())) {
+    let remainderSlice = switch(Utils.safeSlice(input, length, input.size())) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -129,11 +131,11 @@ module {
 
   private func decodeLongString(input: Types.Uint8Array): Result<Output, Text> {
     let firstByte = input.get(0);
-    let llength = firstByte - threshold4;
-    if (Nat.sub(input.size(),1) < Nat8.toNat(llength)) {
+    let llength = Nat8.toNat(firstByte - threshold4);
+    if (Nat.sub(input.size(), 1) < llength) {
       return #err("invalid RLP: not enough bytes for string length");
     };
-    let inputSlice = switch(Utils.safeSlice(input, 1, Nat8.toNat(llength))) {
+    let inputSlice = switch(Utils.safeSlice(input, 1, llength)) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -146,11 +148,11 @@ module {
       return #err("invalid RLP: expected string length to be greater than 55");
     };
 
-    let data = switch(Utils.safeSlice(input, Nat8.toNat(llength), Nat8.toNat(length + llength))) {
+    let data = switch(Utils.safeSlice(input, llength, length + llength)) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
-    let _remainder = switch(Utils.safeSlice(input, Nat8.toNat(length + llength), input.size())) {
+    let _remainder = switch(Utils.safeSlice(input, length + llength, input.size())) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -163,9 +165,9 @@ module {
 
   private func decodeShortList(input: Types.Uint8Array): Result<Output, Text> {
     let firstByte = input.get(0);
-    let length = firstByte - threshold5;
+    let length = Nat8.toNat(firstByte - threshold);
 
-    var innerRemainder = switch(Utils.safeSlice(input, 1, Nat8.toNat(length))) {
+    var innerRemainder = switch(Utils.safeSlice(input, 1, length)) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -179,7 +181,7 @@ module {
       innerRemainder := d.remainder;
     };
 
-    let _remainder = switch(Utils.safeSlice(input, Nat8.toNat(length), input.size())) {
+    let _remainder = switch(Utils.safeSlice(input, length, input.size())) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -192,8 +194,8 @@ module {
 
   private func decodeLongList(input: Types.Uint8Array): Result<Output, Text> {
     let firstByte = input.get(0);
-    let llength = firstByte - threshold6;
-    let inputSlice = switch(Utils.safeSlice(input, 1, Nat8.toNat(llength))) {
+    let llength = Nat8.toNat(firstByte - threshold6);
+    let inputSlice = switch(Utils.safeSlice(input, 1, llength)) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -205,11 +207,11 @@ module {
       return #err("invalid RLP: encoded list too short");
     };
     let totalLength = llength + length;
-    if (Nat8.toNat(totalLength) > input.size()) {
+    if (totalLength > input.size()) {
       return #err("invalid RLP: total length is larger than the data");
     };
 
-    var innerRemainder = switch(Utils.safeSlice(input,Nat8.toNat( llength), Nat8.toNat(totalLength))) {
+    var innerRemainder = switch(Utils.safeSlice(input, llength, totalLength)) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -222,7 +224,7 @@ module {
       decoded.add(d.data);
       innerRemainder := d.remainder;
     };
-    let _remainder = switch(Utils.safeSlice(input, Nat8.toNat(totalLength), input.size())) {
+    let _remainder = switch(Utils.safeSlice(input, totalLength, input.size())) {
       case(#ok(val)) { val };
       case(#err(val)) { return #err(val) };
     };
@@ -234,17 +236,17 @@ module {
   };
 
   /*
-  * Parse integers. Check if there is no leading zeros
+  * Parse integers.
   * @param v The value to parse
-  * @param base The base to parse the integer into
   */
-  private func decodeLength(v: Types.Uint8Array): Result<Nat8, Text> {
-    if (v.get(0) == 0 and v.get(1) == 0) {
-      return #err("invalid RLP: extra zeros");
+  private func decodeLength(v : Types.Uint8Array) : Result<Nat, Text> {
+    if (v.size() > 8) return #err("input too long");
+
+    var result : Nat64 = 0;
+    for (i in Iter.range(0, v.size() - 1)) {
+      result += (Nat64.fromNat(Nat8.toNat(v.get(i))) << Nat64.fromNat(8 * (v.size() - 1 - i)));
     };
-    return switch(Hex.decode(Hex.encode(Buffer.toArray(v)))){
-      case(#ok(val)){ #ok(val[0]) };
-      case(#err(err)){ return #err("not a valid hex") }
-    };
+
+    #ok(Nat64.toNat(result));
   };
 }
